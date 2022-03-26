@@ -1,21 +1,30 @@
-from flask import Flask, request, render_template
+from flask import Flask, render_template, make_response
+from flask_restful import Api, Resource, reqparse 
 from models.model import gpt2_paraphraser, t5_paraphraser
 
-app = Flask(__name__)
+app=Flask(__name__)
+api=Api(app)
 
-@app.route('/',methods=['POST',"GET"])
-def index():
-    if request.method=='POST':
-        data = request.get_json()
-        #generate & return paraphrase using the choosen paraphrase model.
-        if data["model"] == "GPT2":
-            output = gpt2_paraphraser(data["text"])
-        else :
-            output = t5_paraphraser(data["text"])
-        response = {"text":output}
-        return response
-    else:
-        return render_template("index.html")
+data=reqparse.RequestParser()
+data.add_argument("model",type=str,help="the type of model (T5 or GPT2",required=True)
+data.add_argument("text",type=str,help="the text",required=True)
+
+class paraphraser(Resource):
+    def get(self):
+        args=data.parse_args()
+        if args["model"]=="GPT2":
+            return {"text":gpt2_paraphraser(args["text"])}
+        else:
+            return {"text":t5_paraphraser(args["text"])}
+
+class homePage(Resource):
+    def get(self):
+        headers = {'Content-Type': 'text/html'}
+        return make_response(render_template('index.html'),200,headers)
+
+
+api.add_resource(paraphraser,"/paraphrase")
+api.add_resource(homePage,"/")
 
 #run the server
 if __name__== "__main__":
